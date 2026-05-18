@@ -87,8 +87,5 @@ async def map_page(request: Request, db: aiosqlite.Connection = Depends(get_db))
     return templates.TemplateResponse("map.html", {
         "request": request,
         "cities": [dict(c) for c in cities],
-<<<<<<< HEAD
+
     })
-=======
-    })
->>>>>>> 04545d62421a0742ac53ed111b5072899c582a02

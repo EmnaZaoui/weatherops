@@ -107,8 +107,7 @@ async def search_cities_geocoding(query: str):
                 ]
     except Exception:
         pass
-<<<<<<< HEAD
     return []
-=======
-    return []
->>>>>>> 04545d62421a0742ac53ed111b5072899c582a02
+
+   
+ 

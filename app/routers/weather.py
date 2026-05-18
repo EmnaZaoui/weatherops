@@ -11,7 +11,6 @@ router = APIRouter()
 
 @router.get("/current/{city_id}")
 async def get_current_weather(city_id: int, db: aiosqlite.Connection = Depends(get_db)):
-    """Get current weather for a city."""
     cursor = await db.execute("SELECT * FROM cities WHERE id = ?", (city_id,))
     city = await cursor.fetchone()
     if not city:
@@ -21,7 +20,6 @@ async def get_current_weather(city_id: int, db: aiosqlite.Connection = Depends(g
     if not weather:
         raise HTTPException(status_code=503, detail="Service météo indisponible")
     
-    # Save to history
     await db.execute("""
         INSERT INTO weather_history 
         (city_id, city_name, temperature, feels_like, humidity, pressure, wind_speed, wind_direction, description, icon, visibility, uv_index)
@@ -34,7 +32,6 @@ async def get_current_weather(city_id: int, db: aiosqlite.Connection = Depends(g
     ))
     await db.commit()
     
-    # Check alerts
     triggered_alerts = await check_alerts(city_id, weather)
     
     return {
@@ -50,11 +47,9 @@ async def get_current_weather(city_id: int, db: aiosqlite.Connection = Depends(g
 
 @router.get("/all")
 async def get_all_weather(db: aiosqlite.Connection = Depends(get_db)):
-    """Get current weather for all cities."""
     cursor = await db.execute("SELECT * FROM cities")
     cities = await cursor.fetchall()
     
-    results = []
     import asyncio
     
     async def fetch_city_weather(city):
@@ -74,32 +69,20 @@ async def get_all_weather(db: aiosqlite.Connection = Depends(get_db)):
     
     tasks = [fetch_city_weather(city) for city in cities]
     all_results = await asyncio.gather(*tasks)
-    results = [r for r in all_results if r is not None]
-    
-    return results
+    return [r for r in all_results if r is not None]
 
 @router.get("/forecast/{city_id}")
 async def get_forecast(city_id: int, db: aiosqlite.Connection = Depends(get_db)):
-    """Get 7-day forecast for a city."""
     cursor = await db.execute("SELECT * FROM cities WHERE id = ?", (city_id,))
     city = await cursor.fetchone()
     if not city:
         raise HTTPException(status_code=404, detail="Ville non trouvée")
     
     forecast = await fetch_forecast(city["lat"], city["lon"], city["name"])
-    return {
-        "city_id": city_id,
-        "city_name": city["name"],
-        "forecast": forecast
-    }
+    return {"city_id": city_id, "city_name": city["name"], "forecast": forecast}
 
 @router.get("/history/{city_id}")
-async def get_weather_history(
-    city_id: int,
-    limit: int = 24,
-    db: aiosqlite.Connection = Depends(get_db)
-):
-    """Get weather history for a city."""
+async def get_weather_history(city_id: int, limit: int = 24, db: aiosqlite.Connection = Depends(get_db)):
     cursor = await db.execute(
         "SELECT * FROM weather_history WHERE city_id = ? ORDER BY recorded_at DESC LIMIT ?",
         (city_id, limit)
@@ -109,7 +92,6 @@ async def get_weather_history(
 
 @router.get("/air-quality/{city_id}")
 async def get_air_quality(city_id: int, db: aiosqlite.Connection = Depends(get_db)):
-    """Get air quality for a city."""
     cursor = await db.execute("SELECT * FROM cities WHERE id = ?", (city_id,))
     city = await cursor.fetchone()
     if not city:
@@ -120,7 +102,6 @@ async def get_air_quality(city_id: int, db: aiosqlite.Connection = Depends(get_d
 
 @router.get("/stats")
 async def get_global_stats(db: aiosqlite.Connection = Depends(get_db)):
-    """Get global weather statistics."""
     cursor = await db.execute("SELECT COUNT(*) as total FROM cities")
     city_count = (await cursor.fetchone())["total"]
     
@@ -138,8 +119,4 @@ async def get_global_stats(db: aiosqlite.Connection = Depends(get_db)):
         "data_points": history_count,
         "active_alerts": alert_count,
         "triggered_alerts": triggered_count,
-<<<<<<< HEAD
     }
-=======
-    }
->>>>>>> 04545d62421a0742ac53ed111b5072899c582a02

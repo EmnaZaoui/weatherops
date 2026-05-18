@@ -93,8 +93,7 @@ async def toggle_alert(alert_id: int, db: aiosqlite.Connection = Depends(get_db)
     await db.execute("UPDATE alerts SET active = ? WHERE id = ?", (new_status, alert_id))
     await db.commit()
     
-<<<<<<< HEAD
     return {"id": alert_id, "active": new_status, "message": "Statut mis à jour"}
-=======
+
     return {"id": alert_id, "active": new_status, "message": "Statut mis à jour"}
->>>>>>> 04545d62421a0742ac53ed111b5072899c582a02
+
