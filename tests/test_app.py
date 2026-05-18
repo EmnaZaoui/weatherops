@@ -1,9 +1,14 @@
 import pytest
 import os
+import asyncio
 os.environ["DB_PATH"] = "/tmp/test_weatherops.db"
 
 from fastapi.testclient import TestClient
 from app.main import app
+from app.database import init_db
+
+# Initialiser la DB avant les tests
+asyncio.run(init_db())
 
 client = TestClient(app)
 
