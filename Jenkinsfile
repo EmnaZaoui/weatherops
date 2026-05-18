@@ -9,10 +9,9 @@ pipeline {
     }
 
     options {
-        timestamps()
-        timeout(time: 15, unit: 'MINUTES')
-        disableConcurrentBuilds()
-    }
+            timeout(time: 15, unit: 'MINUTES')
+            disableConcurrentBuilds()
+        }
 
     stages {
 
