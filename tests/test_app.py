@@ -138,8 +138,6 @@ async def test_alerts_page(client):
 @pytest.mark.asyncio
 async def test_map_page(client):
     r = await client.get("/map")
-<<<<<<< HEAD
+
     assert r.status_code == 200
-=======
-    assert r.status_code == 200
->>>>>>> 04545d62421a0742ac53ed111b5072899c582a02
+

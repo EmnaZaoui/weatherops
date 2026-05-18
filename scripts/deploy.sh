@@ -129,8 +129,5 @@ echo -e "  ❤️  Health     : ${CYAN}http://localhost:8000/health${NC}"
 echo ""
 echo -e "  Logs en direct : ${YELLOW}docker compose logs -f weatherops${NC}"
 echo -e "  Arrêt          : ${YELLOW}docker compose down${NC}"
-<<<<<<< HEAD
+
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-=======
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
->>>>>>> 04545d62421a0742ac53ed111b5072899c582a02
