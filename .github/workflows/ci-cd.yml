@@ -37,7 +37,7 @@ jobs:
           python -m py_compile app/routers/dashboard.py
           python -m py_compile app/services/weather_service.py
           python -m py_compile app/services/alert_service.py
-          echo "✅ Syntaxe Python correcte"
+          echo " Syntaxe Python correcte"
 
   # ─────────────────────────────────────────
   # JOB 2 : TESTS AUTOMATISÉS
@@ -65,7 +65,7 @@ jobs:
           PYTHONPATH: ${{ github.workspace }}
         run: |
           pytest tests/test_app.py -v --tb=short
-          echo "✅ Tous les tests passés"
+          echo " Tous les tests passés"
 
   # ─────────────────────────────────────────
   # JOB 3 : BUILD DOCKER IMAGE
@@ -74,6 +74,8 @@ jobs:
     name: 🐳 Build Docker Image
     runs-on: ubuntu-latest
     needs: test
+    permissions:        
+      packages: write 
     outputs:
       image_tag: ${{ steps.meta.outputs.tags }}
     steps:
@@ -111,7 +113,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Image built successfully
-        run: echo "✅ Image poussée vers ${{ env.REGISTRY }}/${{ github.repository }}"
+        run: echo " Image poussée vers ${{ env.REGISTRY }}/${{ github.repository }}"
 
   # ─────────────────────────────────────────
   # JOB 4 : RÉSUMÉ FINAL
