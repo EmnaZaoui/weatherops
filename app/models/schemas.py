@@ -74,8 +74,4 @@ class WeatherHistoryResponse(BaseModel):
     icon: str
     visibility: Optional[float]
     uv_index: Optional[float]
-<<<<<<< HEAD
     recorded_at: str
-=======
-    recorded_at: str
->>>>>>> 04545d62421a0742ac53ed111b5072899c582a02
