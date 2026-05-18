@@ -1,0 +1,431 @@
+{% extends "base.html" %}
+{% block title %}WeatherOps — {{ city.name }}{% endblock %}
+
+{% block content %}
+<div class="topbar">
+    <div style="display:flex;align-items:center;gap:16px">
+        <a href="/" style="color:var(--text-muted);text-decoration:none;display:flex;align-items:center;gap:6px;font-size:0.85rem">
+            <i data-lucide="arrow-left" style="width:16px;height:16px"></i>
+            Retour
+        </a>
+        <div>
+            <div class="topbar-title">{{ city.name }} <span style="color:var(--text-muted);font-weight:400">{{ city.country }}</span></div>
+            <div style="font-family:var(--font-mono);font-size:0.72rem;color:var(--text-muted);margin-top:2px">
+                {{ "%.4f"|format(city.lat) }}°N, {{ "%.4f"|format(city.lon) }}°E
+            </div>
+        </div>
+    </div>
+    <div class="topbar-actions">
+        <button class="btn btn-ghost btn-sm" onclick="loadCityData()">
+            <i data-lucide="refresh-cw" style="width:14px;height:14px"></i>
+            Actualiser
+        </button>
+        <button class="btn btn-primary btn-sm" onclick="openAlertModal()">
+            <i data-lucide="bell-plus" style="width:14px;height:14px"></i>
+            Nouvelle alerte
+        </button>
+        <button class="btn btn-danger btn-sm" onclick="deleteCity()">
+            <i data-lucide="trash-2" style="width:14px;height:14px"></i>
+        </button>
+    </div>
+</div>
+
+<div class="page-content">
+    <!-- Current Weather Hero -->
+    <div class="card fade-in" style="margin-bottom:20px;background:linear-gradient(135deg,rgba(13,24,40,0.95),rgba(17,31,51,0.95))">
+        <div class="card-body" style="padding:32px">
+            <div style="display:grid;grid-template-columns:1fr auto;gap:24px;align-items:center">
+                <div>
+                    <div style="font-size:0.8rem;color:var(--text-muted);letter-spacing:0.15em;text-transform:uppercase;font-family:var(--font-mono);margin-bottom:12px">
+                        CONDITIONS ACTUELLES
+                    </div>
+                    <div style="display:flex;align-items:baseline;gap:16px;margin-bottom:16px">
+                        <span id="hero-temp" style="font-size:5rem;font-weight:800;letter-spacing:-0.05em;line-height:1">--°C</span>
+                        <div>
+                            <div id="hero-desc" style="font-size:1.2rem;font-weight:600;color:var(--text-secondary)">Chargement...</div>
+                            <div id="hero-feels" style="font-size:0.85rem;color:var(--text-muted);margin-top:4px">Ressenti: --°</div>
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:20px;flex-wrap:wrap">
+                        <div style="display:flex;align-items:center;gap:8px">
+                            <span style="font-size:1.2rem">💧</span>
+                            <div><div style="font-family:var(--font-mono);font-size:0.65rem;color:var(--text-muted)">HUMIDITÉ</div><div id="detail-hum" style="font-weight:700">--%</div></div>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:8px">
+                            <span style="font-size:1.2rem">💨</span>
+                            <div><div style="font-family:var(--font-mono);font-size:0.65rem;color:var(--text-muted)">VENT</div><div id="detail-wind" style="font-weight:700">-- m/s</div></div>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:8px">
+                            <span style="font-size:1.2rem">📊</span>
+                            <div><div style="font-family:var(--font-mono);font-size:0.65rem;color:var(--text-muted)">PRESSION</div><div id="detail-pres" style="font-weight:700">-- hPa</div></div>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:8px">
+                            <span style="font-size:1.2rem">👁</span>
+                            <div><div style="font-family:var(--font-mono);font-size:0.65rem;color:var(--text-muted)">VISIBILITÉ</div><div id="detail-vis" style="font-weight:700">-- km</div></div>
+                        </div>
+                    </div>
+                </div>
+                <div style="text-align:center">
+                    <div id="hero-icon" style="font-size:7rem;line-height:1;filter:drop-shadow(0 0 30px rgba(56,189,248,0.4))">⏳</div>
+                    <div id="alerts-triggered" style="margin-top:12px"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Air Quality + Quick Stats -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;margin-bottom:20px">
+        <div class="card fade-in stagger-1">
+            <div class="card-body" style="padding:20px;text-align:center">
+                <div style="font-family:var(--font-mono);font-size:0.65rem;color:var(--text-muted);letter-spacing:0.1em;margin-bottom:10px">QUALITÉ AIR</div>
+                <div id="aqi-display" style="font-size:2rem;font-weight:800;margin-bottom:6px">--</div>
+                <div id="aqi-label" style="font-size:0.8rem;color:var(--text-secondary)">Chargement...</div>
+            </div>
+        </div>
+        <div class="card fade-in stagger-2">
+            <div class="card-body" style="padding:20px;text-align:center">
+                <div style="font-family:var(--font-mono);font-size:0.65rem;color:var(--text-muted);letter-spacing:0.1em;margin-bottom:10px">PM2.5</div>
+                <div id="pm25-display" style="font-size:2rem;font-weight:800;color:var(--accent-amber);margin-bottom:6px">--</div>
+                <div style="font-size:0.8rem;color:var(--text-secondary)">µg/m³</div>
+            </div>
+        </div>
+        <div class="card fade-in stagger-3">
+            <div class="card-body" style="padding:20px;text-align:center">
+                <div style="font-family:var(--font-mono);font-size:0.65rem;color:var(--text-muted);letter-spacing:0.1em;margin-bottom:10px">DIRECTION VENT</div>
+                <div id="wind-dir-display" style="font-size:2rem;font-weight:800;color:var(--accent-cyan);margin-bottom:6px">--</div>
+                <div style="font-size:0.8rem;color:var(--text-secondary)">Direction</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Forecast + History Charts -->
+    <div class="grid-2" style="margin-bottom:20px">
+        <!-- 7-day Forecast -->
+        <div class="card fade-in">
+            <div class="card-header">
+                <div class="card-title"><i data-lucide="calendar" style="width:15px;height:15px;color:var(--accent-cyan)"></i> Prévisions 7 jours</div>
+            </div>
+            <div class="card-body" style="padding:0">
+                <div id="forecast-list"></div>
+            </div>
+        </div>
+
+        <!-- History Chart -->
+        <div class="card fade-in">
+            <div class="card-header">
+                <div class="card-title"><i data-lucide="trending-up" style="width:15px;height:15px;color:var(--accent-purple)"></i> Historique température</div>
+            </div>
+            <div class="card-body">
+                <canvas id="historyChart" height="220"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alerts Table -->
+    <div class="card fade-in">
+        <div class="card-header">
+            <div class="card-title"><i data-lucide="bell" style="width:15px;height:15px;color:var(--accent-amber)"></i> Alertes configurées ({{ alerts|length }})</div>
+            <button class="btn btn-ghost btn-sm" onclick="openAlertModal()">
+                <i data-lucide="plus" style="width:14px;height:14px"></i>
+                Ajouter
+            </button>
+        </div>
+        <div class="card-body" style="padding:0">
+            {% if alerts %}
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th>Condition</th>
+                        <th>Seuil</th>
+                        <th>Message</th>
+                        <th>Statut</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="alerts-tbody">
+                    {% for alert in alerts %}
+                    <tr id="alert-row-{{ alert.id }}">
+                        <td>
+                            <span class="badge badge-cyan">{{ alert.alert_type }}</span>
+                        </td>
+                        <td style="font-family:var(--font-mono);font-size:0.82rem">
+                            {% if alert.condition == 'gt' %}> (supérieur à){% else %}< (inférieur à){% endif %}
+                        </td>
+                        <td style="font-weight:700">{{ alert.threshold }}</td>
+                        <td style="color:var(--text-secondary);font-size:0.85rem">{{ alert.message or '—' }}</td>
+                        <td>
+                            {% if alert.triggered %}
+                                <span class="badge badge-rose">⚡ Déclenché</span>
+                            {% elif alert.active %}
+                                <span class="badge badge-emerald">● Actif</span>
+                            {% else %}
+                                <span class="badge" style="background:rgba(122,163,200,0.1);color:var(--text-muted)">Inactif</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div style="display:flex;gap:6px">
+                                <button class="btn btn-ghost btn-sm" onclick="toggleAlert({{ alert.id }})">
+                                    {% if alert.active %}Désactiver{% else %}Activer{% endif %}
+                                </button>
+                                <button class="btn btn-danger btn-sm" onclick="deleteAlert({{ alert.id }})">
+                                    <i data-lucide="trash-2" style="width:12px;height:12px"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div style="padding:30px;text-align:center;color:var(--text-muted)">
+                <div style="font-size:2rem;margin-bottom:10px">🔕</div>
+                <div>Aucune alerte configurée pour cette ville</div>
+                <button class="btn btn-primary btn-sm" style="margin-top:14px" onclick="openAlertModal()">
+                    Créer une alerte
+                </button>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Add Alert Modal -->
+<div class="modal-overlay" id="alertModal">
+    <div class="modal">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
+            <div class="modal-title">🔔 Nouvelle alerte — {{ city.name }}</div>
+            <button onclick="closeModal('alertModal')" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:1.5rem">×</button>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Type de métrique</label>
+            <select id="alert-type" class="form-control">
+                <option value="temperature">🌡 Température (°C)</option>
+                <option value="humidity">💧 Humidité (%)</option>
+                <option value="wind_speed">💨 Vitesse du vent (m/s)</option>
+                <option value="pressure">📊 Pression (hPa)</option>
+            </select>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="form-group">
+                <label class="form-label">Condition</label>
+                <select id="alert-condition" class="form-control">
+                    <option value="gt">Supérieur à (&gt;)</option>
+                    <option value="lt">Inférieur à (&lt;)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Seuil</label>
+                <input type="number" id="alert-threshold" class="form-control" placeholder="Ex: 35" step="0.1">
+            </div>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Message personnalisé (optionnel)</label>
+            <input type="text" id="alert-message" class="form-control" placeholder="Ex: Chaleur excessive à {{ city.name }}">
+        </div>
+        <button class="btn btn-primary" style="width:100%" onclick="createAlert()">
+            <i data-lucide="bell-plus" style="width:14px;height:14px"></i>
+            Créer l'alerte
+        </button>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const cityId = {{ city.id }};
+let historyChart;
+
+async function loadCityData() {
+    try {
+        // Load current weather
+        const weather = await apiCall(`/api/weather/current/${cityId}`);
+        const w = weather.weather;
+        
+        document.getElementById('hero-temp').textContent = `${Math.round(w.temp)}°C`;
+        document.getElementById('hero-temp').className = getTempClass(w.temp);
+        document.getElementById('hero-temp').style.cssText = 'font-size:5rem;font-weight:800;letter-spacing:-0.05em;line-height:1';
+        document.getElementById('hero-desc').textContent = w.description;
+        document.getElementById('hero-feels').textContent = `Ressenti: ${Math.round(w.feels_like)}°C`;
+        document.getElementById('hero-icon').textContent = getWeatherEmoji(w.icon);
+        document.getElementById('detail-hum').textContent = `${w.humidity}%`;
+        document.getElementById('detail-wind').textContent = `${w.wind_speed} m/s ${getWindDirection(w.wind_deg)}`;
+        document.getElementById('detail-pres').textContent = `${w.pressure} hPa`;
+        document.getElementById('detail-vis').textContent = `${((w.visibility || 10000)/1000).toFixed(1)} km`;
+        document.getElementById('wind-dir-display').textContent = getWindDirection(w.wind_deg);
+        
+        // Alerts
+        if (weather.triggered_alerts && weather.triggered_alerts.length > 0) {
+            document.getElementById('alerts-triggered').innerHTML = 
+                `<span class="badge badge-rose">⚠ ${weather.triggered_alerts.length} alerte(s) active(s)</span>`;
+        }
+        
+        // Air quality
+        const aq = await apiCall(`/api/weather/air-quality/${cityId}`);
+        if (aq.air_quality) {
+            const aqi = aq.air_quality;
+            const aqiColors = ['', '#10b981', '#f59e0b', '#f97316', '#f43f5e', '#7f1d1d'];
+            document.getElementById('aqi-display').textContent = aqi.aqi;
+            document.getElementById('aqi-display').style.color = aqiColors[aqi.aqi] || '#38bdf8';
+            document.getElementById('aqi-label').textContent = aqi.label;
+            document.getElementById('pm25-display').textContent = aqi.pm2_5;
+        }
+        
+        // Forecast
+        const forecast = await apiCall(`/api/weather/forecast/${cityId}`);
+        renderForecast(forecast.forecast);
+        
+        // History
+        const history = await apiCall(`/api/weather/history/${cityId}?limit=24`);
+        renderHistoryChart(history);
+        
+    } catch(e) {
+        showToast('Erreur: ' + e.message, 'error');
+    }
+}
+
+function renderForecast(forecast) {
+    const container = document.getElementById('forecast-list');
+    const days = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
+    container.innerHTML = forecast.map((f, i) => {
+        const date = new Date(f.date);
+        const dayName = i === 0 ? 'Aujourd\'hui' : days[date.getDay()];
+        return `
+            <div style="display:flex;align-items:center;padding:12px 20px;border-bottom:1px solid var(--border);gap:12px">
+                <div style="width:80px;font-weight:700;font-size:0.85rem">${dayName}</div>
+                <div style="font-size:1.5rem">${getWeatherEmoji(f.icon)}</div>
+                <div style="flex:1;font-size:0.8rem;color:var(--text-secondary)">${f.description}</div>
+                <div style="display:flex;gap:10px;font-family:var(--font-mono);font-size:0.82rem">
+                    <span style="color:var(--accent-rose);font-weight:700">${Math.round(f.temp_max)}°</span>
+                    <span style="color:var(--text-muted)">${Math.round(f.temp_min)}°</span>
+                </div>
+                <div style="width:40px;text-align:right;font-size:0.78rem;color:var(--accent-cyan)">
+                    💧${f.humidity}%
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function renderHistoryChart(history) {
+    if (!history || history.length === 0) return;
+    const reversed = [...history].reverse();
+    const labels = reversed.map(h => {
+        const d = new Date(h.recorded_at);
+        return d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+    });
+    const temps = reversed.map(h => h.temperature);
+    const humidity = reversed.map(h => h.humidity);
+
+    if (historyChart) historyChart.destroy();
+    historyChart = new Chart(document.getElementById('historyChart'), {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [
+                {
+                    label: 'Température °C',
+                    data: temps,
+                    borderColor: '#38bdf8',
+                    backgroundColor: 'rgba(56,189,248,0.1)',
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 3,
+                    borderWidth: 2,
+                    yAxisID: 'y',
+                },
+                {
+                    label: 'Humidité %',
+                    data: humidity,
+                    borderColor: '#a855f7',
+                    backgroundColor: 'rgba(168,85,247,0.05)',
+                    fill: false,
+                    tension: 0.4,
+                    pointRadius: 2,
+                    borderWidth: 1.5,
+                    borderDash: [4,4],
+                    yAxisID: 'y1',
+                }
+            ]
+        },
+        options: {
+            scales: {
+                x: { grid:{color:'rgba(56,189,248,0.05)'}, ticks:{color:'#7aa3c8',font:{size:9,family:'Space Mono'},maxTicksLimit:8} },
+                y: { position:'left', grid:{color:'rgba(56,189,248,0.05)'}, ticks:{color:'#38bdf8',font:{size:9}} },
+                y1: { position:'right', grid:{drawOnChartArea:false}, ticks:{color:'#a855f7',font:{size:9}} },
+            },
+            plugins: { legend:{labels:{color:'#7aa3c8',font:{family:'Syne',size:10}}} },
+            responsive:true, maintainAspectRatio:false,
+        }
+    });
+}
+
+async function createAlert() {
+    const data = {
+        city_id: cityId,
+        city_name: '{{ city.name }}',
+        alert_type: document.getElementById('alert-type').value,
+        threshold: parseFloat(document.getElementById('alert-threshold').value),
+        condition: document.getElementById('alert-condition').value,
+        message: document.getElementById('alert-message').value || null,
+    };
+    if (isNaN(data.threshold)) {
+        showToast('Veuillez saisir un seuil valide', 'error');
+        return;
+    }
+    try {
+        await apiCall('/api/alerts/', 'POST', data);
+        showToast('Alerte créée avec succès', 'success');
+        closeModal('alertModal');
+        setTimeout(() => window.location.reload(), 800);
+    } catch(e) {
+        showToast('Erreur: ' + e.message, 'error');
+    }
+}
+
+async function toggleAlert(alertId) {
+    try {
+        const result = await apiCall(`/api/alerts/${alertId}/toggle`, 'PATCH');
+        showToast(`Alerte ${result.active ? 'activée' : 'désactivée'}`, 'success');
+        setTimeout(() => window.location.reload(), 500);
+    } catch(e) {
+        showToast('Erreur: ' + e.message, 'error');
+    }
+}
+
+async function deleteAlert(alertId) {
+    if (!confirm('Supprimer cette alerte ?')) return;
+    try {
+        await apiCall(`/api/alerts/${alertId}`, 'DELETE');
+        document.getElementById(`alert-row-${alertId}`)?.remove();
+        showToast('Alerte supprimée', 'success');
+    } catch(e) {
+        showToast('Erreur: ' + e.message, 'error');
+    }
+}
+
+async function deleteCity() {
+    if (!confirm('Supprimer {{ city.name }} et toutes ses données ?')) return;
+    try {
+        await apiCall(`/api/cities/${cityId}`, 'DELETE');
+        showToast('Ville supprimée', 'success');
+        setTimeout(() => window.location = '/', 1000);
+    } catch(e) {
+        showToast('Erreur: ' + e.message, 'error');
+    }
+}
+
+function openAlertModal() { document.getElementById('alertModal').classList.add('active'); }
+function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+document.querySelectorAll('.modal-overlay').forEach(el => {
+    el.addEventListener('click', function(e) { if(e.target===this) closeModal(this.id); });
+});
+
+loadCityData();
+</script>
+<<<<<<< HEAD
+{% endblock %}
+=======
+{% endblock %}
+>>>>>>> 04545d62421a0742ac53ed111b5072899c582a02

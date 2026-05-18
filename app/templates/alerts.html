@@ -1,0 +1,249 @@
+{% extends "base.html" %}
+{% block title %}WeatherOps — Alertes{% endblock %}
+
+{% block content %}
+<div class="topbar">
+    <div>
+        <div class="topbar-title">Gestion des Alertes</div>
+        <div style="font-family:var(--font-mono);font-size:0.72rem;color:var(--text-muted);margin-top:2px">
+            {{ alerts|length }} alerte(s) configurée(s)
+        </div>
+    </div>
+    <div class="topbar-actions">
+        <button class="btn btn-primary btn-sm" onclick="openCreateModal()">
+            <i data-lucide="bell-plus" style="width:14px;height:14px"></i>
+            Nouvelle alerte
+        </button>
+    </div>
+</div>
+
+<div class="page-content">
+    <!-- Alert Stats -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px">
+        {% set active_count = alerts|selectattr('active','equalto',1)|list|length %}
+        {% set triggered_count = alerts|selectattr('triggered','equalto',1)|list|length %}
+        
+        <div class="card" style="padding:18px">
+            <div style="font-family:var(--font-mono);font-size:0.65rem;color:var(--text-muted);margin-bottom:8px">TOTAL ALERTES</div>
+            <div style="font-size:2rem;font-weight:800;color:var(--accent-cyan)">{{ alerts|length }}</div>
+        </div>
+        <div class="card" style="padding:18px">
+            <div style="font-family:var(--font-mono);font-size:0.65rem;color:var(--text-muted);margin-bottom:8px">ACTIVES</div>
+            <div style="font-size:2rem;font-weight:800;color:var(--accent-emerald)">{{ active_count }}</div>
+        </div>
+        <div class="card" style="padding:18px">
+            <div style="font-family:var(--font-mono);font-size:0.65rem;color:var(--text-muted);margin-bottom:8px">DÉCLENCHÉES</div>
+            <div style="font-size:2rem;font-weight:800;color:var(--accent-rose)">{{ triggered_count }}</div>
+        </div>
+        <div class="card" style="padding:18px">
+            <div style="font-family:var(--font-mono);font-size:0.65rem;color:var(--text-muted);margin-bottom:8px">INACTIVES</div>
+            <div style="font-size:2rem;font-weight:800;color:var(--text-muted)">{{ alerts|length - active_count }}</div>
+        </div>
+    </div>
+
+    <!-- Alerts Table -->
+    <div class="card fade-in">
+        <div class="card-header">
+            <div class="card-title"><i data-lucide="bell" style="width:15px;height:15px;color:var(--accent-amber)"></i> Toutes les alertes</div>
+            <div style="display:flex;gap:8px">
+                <input type="text" id="filter-input" class="form-control" style="width:220px;padding:6px 12px;font-size:0.82rem" 
+                       placeholder="Filtrer par ville..." oninput="filterAlerts(this.value)">
+            </div>
+        </div>
+        <div class="card-body" style="padding:0">
+            {% if alerts %}
+            <table class="data-table" id="alerts-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Ville</th>
+                        <th>Métrique</th>
+                        <th>Condition</th>
+                        <th>Seuil</th>
+                        <th>Message</th>
+                        <th>Statut</th>
+                        <th>Créé le</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for alert in alerts %}
+                    <tr id="alert-row-{{ alert.id }}" class="alert-row" data-city="{{ alert.city_name|lower }}">
+                        <td style="font-family:var(--font-mono);color:var(--text-muted);font-size:0.78rem">#{{ alert.id }}</td>
+                        <td>
+                            <a href="/city/{{ alert.city_id }}" style="color:var(--accent-cyan);text-decoration:none;font-weight:700">
+                                {{ alert.city_name }}
+                            </a>
+                        </td>
+                        <td>
+                            <span class="badge 
+                                {% if alert.alert_type == 'temperature' %}badge-rose
+                                {% elif alert.alert_type == 'humidity' %}badge-cyan
+                                {% elif alert.alert_type == 'wind_speed' %}badge-amber
+                                {% else %}badge-purple{% endif %}">
+                                {% if alert.alert_type == 'temperature' %}🌡 Temp.
+                                {% elif alert.alert_type == 'humidity' %}💧 Hum.
+                                {% elif alert.alert_type == 'wind_speed' %}💨 Vent
+                                {% else %}📊 Press.{% endif %}
+                            </span>
+                        </td>
+                        <td style="font-family:var(--font-mono);font-size:0.82rem">
+                            {% if alert.condition == 'gt' %}
+                            <span style="color:var(--accent-rose)">▲ supérieur à</span>
+                            {% else %}
+                            <span style="color:var(--accent-cyan)">▼ inférieur à</span>
+                            {% endif %}
+                        </td>
+                        <td style="font-weight:800;font-size:1rem">{{ alert.threshold }}</td>
+                        <td style="color:var(--text-secondary);font-size:0.83rem;max-width:200px;overflow:hidden;text-overflow:ellipsis">
+                            {{ alert.message or '—' }}
+                        </td>
+                        <td>
+                            {% if alert.triggered %}
+                                <span class="badge badge-rose">⚡ Déclenché</span>
+                            {% elif alert.active %}
+                                <span class="badge badge-emerald">● Actif</span>
+                            {% else %}
+                                <span class="badge" style="background:rgba(61,98,128,0.2);color:var(--text-muted);border:1px solid var(--border)">⏸ Inactif</span>
+                            {% endif %}
+                        </td>
+                        <td style="font-family:var(--font-mono);font-size:0.72rem;color:var(--text-muted)">
+                            {{ alert.created_at[:10] if alert.created_at else '—' }}
+                        </td>
+                        <td>
+                            <div style="display:flex;gap:6px">
+                                <button class="btn btn-ghost btn-sm" onclick="toggleAlert({{ alert.id }}, this)">
+                                    {% if alert.active %}Pause{% else %}Activer{% endif %}
+                                </button>
+                                <button class="btn btn-danger btn-sm" onclick="deleteAlert({{ alert.id }})">
+                                    <i data-lucide="x" style="width:12px;height:12px"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div style="padding:60px;text-align:center;color:var(--text-muted)">
+                <div style="font-size:4rem;margin-bottom:16px">🔕</div>
+                <div style="font-size:1.1rem;font-weight:600;margin-bottom:8px">Aucune alerte configurée</div>
+                <div style="font-size:0.85rem;margin-bottom:20px">Créez des alertes pour surveiller les conditions météo</div>
+                <button class="btn btn-primary" onclick="openCreateModal()">
+                    <i data-lucide="bell-plus" style="width:14px;height:14px"></i>
+                    Créer la première alerte
+                </button>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Create Alert Modal -->
+<div class="modal-overlay" id="createModal">
+    <div class="modal">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
+            <div class="modal-title">🔔 Nouvelle alerte météo</div>
+            <button onclick="closeModal('createModal')" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:1.5rem">×</button>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Ville</label>
+            <select id="alert-city" class="form-control">
+                {% for city in cities %}
+                <option value="{{ city.id }}" data-name="{{ city.name }}">{{ city.name }} ({{ city.country }})</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Type de métrique</label>
+            <select id="alert-type" class="form-control">
+                <option value="temperature">🌡 Température (°C)</option>
+                <option value="humidity">💧 Humidité (%)</option>
+                <option value="wind_speed">💨 Vitesse du vent (m/s)</option>
+                <option value="pressure">📊 Pression (hPa)</option>
+            </select>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="form-group">
+                <label class="form-label">Condition</label>
+                <select id="alert-condition" class="form-control">
+                    <option value="gt">Supérieur à (&gt;)</option>
+                    <option value="lt">Inférieur à (&lt;)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Seuil</label>
+                <input type="number" id="alert-threshold" class="form-control" placeholder="Ex: 35" step="0.1">
+            </div>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Message (optionnel)</label>
+            <input type="text" id="alert-message" class="form-control" placeholder="Description personnalisée...">
+        </div>
+        <button class="btn btn-primary" style="width:100%" onclick="createAlert()">
+            <i data-lucide="bell-plus" style="width:14px;height:14px"></i>
+            Créer l'alerte
+        </button>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function filterAlerts(query) {
+    const rows = document.querySelectorAll('.alert-row');
+    rows.forEach(row => {
+        const city = row.getAttribute('data-city');
+        row.style.display = city.includes(query.toLowerCase()) ? '' : 'none';
+    });
+}
+
+async function toggleAlert(alertId, btn) {
+    try {
+        const result = await apiCall(`/api/alerts/${alertId}/toggle`, 'PATCH');
+        btn.textContent = result.active ? 'Pause' : 'Activer';
+        showToast(`Alerte ${result.active ? 'activée' : 'désactivée'}`, 'success');
+        setTimeout(() => window.location.reload(), 800);
+    } catch(e) { showToast('Erreur: ' + e.message, 'error'); }
+}
+
+async function deleteAlert(alertId) {
+    if (!confirm('Supprimer cette alerte définitivement ?')) return;
+    try {
+        await apiCall(`/api/alerts/${alertId}`, 'DELETE');
+        document.getElementById(`alert-row-${alertId}`)?.remove();
+        showToast('Alerte supprimée', 'success');
+    } catch(e) { showToast('Erreur: ' + e.message, 'error'); }
+}
+
+async function createAlert() {
+    const citySelect = document.getElementById('alert-city');
+    const cityName = citySelect.options[citySelect.selectedIndex].getAttribute('data-name');
+    const data = {
+        city_id: parseInt(citySelect.value),
+        city_name: cityName,
+        alert_type: document.getElementById('alert-type').value,
+        threshold: parseFloat(document.getElementById('alert-threshold').value),
+        condition: document.getElementById('alert-condition').value,
+        message: document.getElementById('alert-message').value || null,
+    };
+    if (isNaN(data.threshold)) { showToast('Seuil invalide', 'error'); return; }
+    try {
+        await apiCall('/api/alerts/', 'POST', data);
+        showToast('Alerte créée !', 'success');
+        closeModal('createModal');
+        setTimeout(() => window.location.reload(), 800);
+    } catch(e) { showToast('Erreur: ' + e.message, 'error'); }
+}
+
+function openCreateModal() { document.getElementById('createModal').classList.add('active'); }
+function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+document.querySelectorAll('.modal-overlay').forEach(el => {
+    el.addEventListener('click', function(e) { if(e.target===this) closeModal(this.id); });
+});
+</script>
+<<<<<<< HEAD
+{% endblock %}
+=======
+{% endblock %}
+>>>>>>> 04545d62421a0742ac53ed111b5072899c582a02

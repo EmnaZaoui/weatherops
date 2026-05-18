@@ -1,0 +1,133 @@
+name: WeatherOps CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  IMAGE_NAME: weatherops
+  REGISTRY: ghcr.io
+
+jobs:
+
+  # ─────────────────────────────────────────
+  # JOB 1 : LINT + SYNTAX CHECK
+  # ─────────────────────────────────────────
+  lint:
+    name: 🔍 Lint & Syntax Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Check Python syntax
+        run: |
+          python -m py_compile app/main.py
+          python -m py_compile app/database.py
+          python -m py_compile app/routers/weather.py
+          python -m py_compile app/routers/alerts.py
+          python -m py_compile app/routers/cities.py
+          python -m py_compile app/routers/dashboard.py
+          python -m py_compile app/services/weather_service.py
+          python -m py_compile app/services/alert_service.py
+          echo "✅ Syntaxe Python correcte"
+
+  # ─────────────────────────────────────────
+  # JOB 2 : TESTS AUTOMATISÉS
+  # ─────────────────────────────────────────
+  test:
+    name: 🧪 Tests Automatisés
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt pytest pytest-asyncio httpx
+
+      - name: Run tests
+        env:
+          DB_PATH: /tmp/test_weatherops.db
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          pytest tests/test_app.py -v --tb=short
+          echo "✅ Tous les tests passés"
+
+  # ─────────────────────────────────────────
+  # JOB 3 : BUILD DOCKER IMAGE
+  # ─────────────────────────────────────────
+  build:
+    name: 🐳 Build Docker Image
+    runs-on: ubuntu-latest
+    needs: test
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tags }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix=sha-
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Image built successfully
+        run: echo "✅ Image poussée vers ${{ env.REGISTRY }}/${{ github.repository }}"
+
+  # ─────────────────────────────────────────
+  # JOB 4 : RÉSUMÉ FINAL
+  # ─────────────────────────────────────────
+  summary:
+    name: 📋 Résumé du Pipeline
+    runs-on: ubuntu-latest
+    needs: [lint, test, build]
+    if: always()
+    steps:
+      - name: Pipeline Summary
+        run: |
+          echo "================================================"
+          echo "  WeatherOps CI/CD Pipeline — Résumé"
+          echo "================================================"
+          echo "  Lint     : ${{ needs.lint.result }}"
+          echo "  Tests    : ${{ needs.test.result }}"
+          echo "  Build    : ${{ needs.build.result }}"
+          echo "  Branche  : ${{ github.ref_name }}"
+          echo "  Commit   : ${{ github.sha }}"
+          echo "  Auteur   : ${{ github.actor }}"
+          echo "================================================"
