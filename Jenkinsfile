@@ -100,8 +100,5 @@ pipeline {
         failure {
             echo " BUILD #${BUILD_NUMBER} ECHOUE"
         }
-        always {
-            deleteDir()
-        }
     }
 }
